@@ -1,12 +1,16 @@
+import java.lang.reflect.Array;
 import java.util.*;
 
 public class Graph {
     private HashMap<Vertex, LinkedList<Vertex>> adjVertices = new HashMap<>();
+    private HashMap<Vertex, LinkedList<Vertex>> directedVertices = new HashMap<>();
 
     static class Vertex {
         String label;
+        int indegree;
         Vertex(String label) {
             this.label = label;
+            indegree = 0;
         }
 
         @Override
@@ -32,20 +36,23 @@ public class Graph {
         }
     }
 
-    public void addVertex(String label) {
-        adjVertices.putIfAbsent(new Vertex(label), new LinkedList<Vertex>());
+    public void addVertexUndirected(Vertex v) {
+        adjVertices.putIfAbsent(v, new LinkedList<Vertex>());
     }
 
-    public boolean removeVertex(String label) {
-        Vertex rmv = new Vertex(label);
-        if(adjVertices.containsKey(rmv)) {
-            adjVertices.remove(rmv);
+    public void addVertexDirected(Vertex v) {
+        directedVertices.putIfAbsent(v, new LinkedList<>());
+    }
+
+    public boolean removeVertex(Vertex v) {
+        if(adjVertices.containsKey(v)) {
+            adjVertices.remove(v);
             return true;
         }
         return false;
     }
 
-    public boolean addEdge(String start, String destination) {
+    public boolean addEdgeUndirected(String start, String destination) {
         Vertex v1 = new Vertex(start);
         Vertex v2 = new Vertex(destination);
         if(adjVertices.containsKey(v1) && adjVertices.containsKey(v2)) {
@@ -55,10 +62,18 @@ public class Graph {
                 return true;
             }
         }
+
         return false;
     }
 
-    public boolean removeEdge(String start, String destination) {
+    public void addEdgeDirected(Vertex start, Vertex destination) {
+        if(!directedVertices.containsKey(start))
+            addVertexDirected(start);
+        directedVertices.get(start).add(destination);
+        destination.indegree++;
+    }
+
+    public boolean removeEdgeUndirected(String start, String destination) {
         Vertex v1 = new Vertex(start);
         Vertex v2 = new Vertex(destination);
         if(adjVertices.containsKey(v1) && adjVertices.containsKey(v2)) {
@@ -71,7 +86,7 @@ public class Graph {
         return false;
     }
 
-    Set<String> depthFirstTraversal(String root) {
+    public Set<String> depthFirstTraversalUG(String root) {
         if(!adjVertices.containsKey(new Vertex(root))) {
             return Collections.emptySet();
         }
@@ -92,7 +107,7 @@ public class Graph {
         return visited;
     }
 
-    Set<String> breadthFirstTraversal(String root) {
+    public Set<String> breadthFirstTraversalUG(String root) {
         if(!adjVertices.containsKey(new Vertex(root))) {
             return Collections.emptySet();
         }
@@ -114,6 +129,72 @@ public class Graph {
         return visited;
     }
 
+    public Set<String> depthFirstTraversalDG(Vertex root) {
+        if(!directedVertices.containsKey(root)) {
+            return Collections.emptySet();
+        }
+
+        Set<String> visited = new LinkedHashSet<>();
+        Stack<String> stack = new Stack<>();
+
+        stack.push(root.label);
+        while(!stack.isEmpty()) {
+            String vertex = stack.pop();
+            if(!visited.contains(vertex)) {
+                visited.add(vertex);
+                for(Vertex v : directedVertices.get(root)) {
+                    stack.push(v.label);
+                }
+            }
+        }
+        return visited;
+    }
+
+    public Set<String> breadthFirstTraversalDG(Vertex root) {
+        if(!directedVertices.containsKey(root)) {
+            return Collections.emptySet();
+        }
+
+        Set<String> visited = new LinkedHashSet<>();
+        Queue<Vertex> queue = new LinkedList<>();
+        queue.add(root);
+        visited.add(root.label);
+
+        while(!queue.isEmpty()) {
+            Vertex vertex = queue.poll();
+            for(Vertex v : directedVertices.get(vertex)) {
+                if(!visited.contains(v.label)) {
+                    visited.add(v.label);
+                    queue.add(vertex);
+                }
+            }
+        }
+        return visited;
+    }
+
+
+    public Set<Vertex> topologicalSortDAG() {
+        Stack<Vertex> queue = new Stack<>();
+        Set<Vertex> sorted = new LinkedHashSet<>();
+
+        for(Vertex v : directedVertices.keySet()) {
+            if(v.indegree == 0)
+                queue.add(v);
+        }
+
+        while(!queue.isEmpty()) {
+            Vertex curr = queue.pop();
+            sorted.add(curr);
+            if(curr.indegree == 0)
+                continue;
+            for(Vertex neighbor : directedVertices.get(curr)) {
+                neighbor.indegree--;
+                if(neighbor.indegree == 0)
+                    queue.add(neighbor);
+            }
+        }
+        return sorted;
+    }
 
     @Override
     public String toString() {
